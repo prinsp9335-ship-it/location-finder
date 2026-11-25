@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Outlet Finder - Final</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 15px;
+            background: #f9f9f9;
+        }
+
+        .box {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        input {
+            padding: 12px;
+            width: 100%;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        button {
+            padding: 12px 15px;
+            cursor: pointer;
+            background: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            width: 100%;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        #mapBtn { background: #34a853; }
+        #routeBtn { background: #fbbc05; color: black; }
+        #copyMapLinkBtn { background: #00bcd4; color: white; }
+        #copyAllBtn { background: #673ab7; color: white; }
+
+        ul { list-style: none; padding: 0; }
+
+        li {
+            margin-bottom: 15px;
+            padding: 12px;
+            border: 1px solid #eee;
+            border-radius: 6px;
+            background: #fff;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .content-area { display: flex; flex-direction: column; gap: 4px; flex-grow: 1; }
+        .name { font-weight: bold; color: #1a73e8; font-size: 17px; }
+        .address { color: #555; font-size: 14px; }
+        .dist-info { font-size: 14px; color: #333; }
+        .maps-link { display: inline-block; margin-top: 5px; color: #32CD32; text-decoration: none; font-weight: bold; }
+        .maps-link:hover { color: #008000; text-decoration: underline; }
+
+        .action-btns { display: flex; flex-direction: column; gap: 10px; align-items: center; margin-left: 10px; }
+        .remove-btn { background: #ff4d4d; color: white; border: none; border-radius: 50%; width: 30px; height: 30px; cursor: pointer; font-weight: bold; font-size: 18px; }
+        .copy-single-btn { background: #e0e0e0; color: #333; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; font-weight: bold; }
+
+        #map-wrapper { position: relative; margin-top: 15px; display: none; }
+        #map { height: 380px; width: 100%; border-radius: 8px; border: 1px solid #ddd; z-index: 1; }
+        #map:fullscreen { height: 100vh; width: 100vw; border-radius: 0; }
+
+        .map-controls {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 1000;
+            display: flex;
+            gap: 8px;
+        }
+
+        .map-ctrl-btn {
+            width: auto;
+            margin: 0;
+            padding: 7px 12px;
+            font-size: 13px;
+            background: #ffffff;
+            color: #222;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+        }
+
+        .map-ctrl-btn:hover { background: #f1f3f4; }
+
+        .outlet-label {
+            background: #ffffff;
+            color: #1a73e8;
+            border: 1px solid #1a73e8;
+            border-radius: 5px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .outlet-label:hover {
+            background: #1a73e8;
+            color: #ffffff;
+            z-index: 9999 !important;
+        }
+
+        .you-label {
+            background: #155724;
+            color: #ffffff;
+            border: 1px solid #155724;
+            border-radius: 5px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-weight: bold;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+            white-space: nowrap;
+        }
+
+        #status {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="status">📍 Outlet Finder Ready</div>
+
+    <div class="box">
+        <h2>Find Outlets</h2>
+        <input type="text" id="ids" placeholder="Enter Outlet IDs then press Enter">
+
+        <button id="findBtn" onclick="findOutlets()">Find Outlets (or Press Enter)</button>
+        <button id="mapBtn" style="display: none;" onclick="showAllOnMap()">Show All on Map</button>
+        <button id="copyMapLinkBtn" style="display: none;" onclick="copyMapLink()">🔗 Copy Map Route Link</button>
+        <button id="routeBtn" style="display: none;" onclick="openFullRoute()">Start Full Route</button>
+        <button id="copyAllBtn" style="display: none;" onclick="copyAllDetails()">📋 Copy All Details</button>
+
+        <ul id="result"></ul>
+
+        <div id="map-wrapper">
+            <div id="map">
+                <div class="map-controls">
+                    <button type="button" class="map-ctrl-btn" onclick="copyMapRouteInfo()">📋 Copy Map</button>
+                    <button type="button" class="map-ctrl-btn" onclick="toggleFullScreenMap()">⛶ Full Screen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SHEET_ID = "1u7RN-0d34sy01gXlJjc16C-ZTOdsQPj94X9NXSWabqo";
+
+        document.getElementById("ids").addEventListener("keypress", function (event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                findOutlets();
+            }
+        });
+
+        let outletsData = [], map, routePolyline;
+
+        const bluePinIcon = L.icon({
+            iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
+            shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+
+        function getDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+            return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        async function findOutlets() {
+            const rawIds = document.getElementById("ids").value;
+            const findBtn = document.getElementById("findBtn");
+            if (!rawIds) return alert("Bhai, IDs toh dalo!");
+
+            findBtn.innerText = "Searching...";
+            findBtn.disabled = true;
+
+            const ids = rawIds.split(/[\s,]+/).map(x => x.trim()).filter(x => x);
+
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                try {
+                    const userLat = pos.coords.latitude;
+                    const userLon = pos.coords.longitude;
+                    const res = await fetch(`https://opensheet.elk.sh/${SHEET_ID}/location`);
+                    const data = await res.json();
+                    let filtered = data.filter(d => ids.includes(String(d["Outlet Id"])));
+
+                    if (!filtered.length) {
+                        alert("No data found");
+                    } else {
+                        let sorted = [];
+                        let pool = [...filtered];
+                        let currentLat = userLat;
+                        let currentLon = userLon;
+
+                        while (pool.length > 0) {
+                            let nearestIdx = 0;
+                            let minDist = Infinity;
+                            for (let i = 0; i < pool.length; i++) {
+                                let d = getDistance(currentLat, currentLon, parseFloat(pool[i].Latitude), parseFloat(pool[i].Longitude));
+                                if (d < minDist) { minDist = d; nearestIdx = i; }
+                            }
+                            let chosen = pool.splice(nearestIdx, 1)[0];
+                            sorted.push({
+                                name: chosen["Outlet Name"],
+                                address: chosen["Address"],
+                                lat: parseFloat(chosen.Latitude),
+                                lng: parseFloat(chosen.Longitude),
+                                link: chosen["Location"],
+                                distFromPrev: minDist
+                            });
+                            currentLat = sorted[sorted.length - 1].lat;
+                            currentLon = sorted[sorted.length - 1].lng;
+                        }
+                        outletsData = sorted;
+                        renderResults();
+                        document.getElementById("mapBtn").style.display = "block";
+                        document.getElementById("copyMapLinkBtn").style.display = "block";
+                        document.getElementById("routeBtn").style.display = "block";
+                        document.getElementById("copyAllBtn").style.display = "block";
+                    }
+                } catch (e) {
+                    alert("Error!");
+                } finally {
+                    findBtn.innerText = "Find Outlets (or Press Enter)";
+                    findBtn.disabled = false;
+                }
+            });
+        }
+
+        function renderResults() {
+            const ul = document.getElementById("result");
+            ul.innerHTML = "";
+            outletsData.forEach((r, index) => {
+                const li = document.createElement("li");
+                const distLabel = index === 0 ? "Distance from You" : "Distance from last shop";
+
+                li.innerHTML = `
+                    <div class="content-area">
+                        <div class="name">${index + 1}. ${r.name}</div>
+                        <div class="address">${r.address || "No Address"}</div>
+                        <div class="dist-info"><b>${distLabel}:</b> ${r.distFromPrev.toFixed(2)} km</div>
+                        <a class="maps-link" href="${r.link}" target="_blank"> 📍 Open Location</a>
+                    </div>
+                    <div class="action-btns">
+                        <button class="remove-btn" onclick="removeItem(${index})">×</button>
+                        <button class="copy-single-btn" onclick="copySingle(${index})">Copy</button>
+                    </div>
+                `;
+                ul.appendChild(li);
+            });
+        }
+
+        function copySingle(index) {
+            const r = outletsData[index];
+            const text = `🏪 *${r.name}*\n📍 Address: ${r.address}\n📏 Dist: ${r.distFromPrev.toFixed(2)} km\n🔗 Location: ${r.link}`;
+            copyToClipboard(text);
+        }
+
+        function copyAllDetails() {
+            if (outletsData.length === 0) return;
+            let fullText = "📋 *ALL OUTLET DETAILS* 📋\n\n";
+            outletsData.forEach((r, i) => {
+                fullText += `${i + 1}. *${r.name}*\n📍 ${r.address}\n🔗 ${r.link}\n------------------\n`;
+            });
+            copyToClipboard(fullText);
+        }
+
+        function copyMapLink() {
+            if (outletsData.length === 0) return;
+            navigator.geolocation.getCurrentPosition(pos => {
+                let baseUrl = "https://www.google.com/maps/dir/";
+                let points = [`${pos.coords.latitude},${pos.coords.longitude}`];
+                outletsData.forEach(o => {
+                    if (o.lat && o.lng) {
+                        points.push(`${o.lat},${o.lng}`);
+                    }
+                });
+                let fullMapUrl = baseUrl + points.join("/");
+                let shareText = `📍 *Full Route Map Link* 📍\n\nIs link par click karke poora route maps me dekhein:\n🔗 ${fullMapUrl}`;
+                copyToClipboard(shareText);
+            });
+        }
+
+        function copyMapRouteInfo() {
+            copyMapLink();
+        }
+
+        function toggleFullScreenMap() {
+            const mapEl = document.getElementById("map");
+            if (!document.fullscreenElement) {
+                if (mapEl.requestFullscreen) {
+                    mapEl.requestFullscreen().then(() => setTimeout(() => map && map.invalidateSize(), 200));
+                }
+            } else if (document.exitFullscreen) {
+                document.exitFullscreen().then(() => setTimeout(() => map && map.invalidateSize(), 200));
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert("Copied to clipboard! Ab WhatsApp pe paste kar do.");
+            }).catch(() => {
+                alert("Copy failed!");
+            });
+        }
+
+        function removeItem(index) {
+            outletsData.splice(index, 1);
+            renderResults();
+        }
+
+        function showAllOnMap() {
+            document.getElementById("map-wrapper").style.display = "block";
+            navigator.geolocation.getCurrentPosition(pos => {
+                const { latitude: lat, longitude: lng } = pos.coords;
+                if (!map) {
+                    map = L.map('map').setView([lat, lng], 14);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+                } else {
+                    map.setView([lat, lng], 14);
+                    setTimeout(() => map.invalidateSize(), 100);
+                }
+
+                map.eachLayer((layer) => {
+                    if (layer instanceof L.Marker || layer instanceof L.Polyline) {
+                        map.removeLayer(layer);
+                    }
+                });
+
+                L.marker([lat, lng], { icon: bluePinIcon })
+                    .addTo(map)
+                    .bindPopup("You")
+                    .bindTooltip("You", {
+                        permanent: true,
+                        direction: "top",
+                        offset: [0, -34],
+                        className: "you-label"
+                    });
+
+                const routeCoords = [[lat, lng]];
+
+                const placements = [
+                    { direction: "top", offset: [-35, -34] },
+                    { direction: "bottom", offset: [35, 8] },
+                    { direction: "top", offset: [45, -34] },
+                    { direction: "bottom", offset: [-45, 8] }
+                ];
+
+                outletsData.forEach((o, idx) => {
+                    if (o.lat && o.lng) {
+                        routeCoords.push([o.lat, o.lng]);
+                        const place = placements[idx % placements.length];
+
+                        let marker = L.marker([o.lat, o.lng], { icon: bluePinIcon })
+                            .addTo(map)
+                            .bindTooltip(`${idx + 1}. ${o.name}`, {
+                                permanent: true,
+                                direction: place.direction,
+                                offset: place.offset,
+                                interactive: true,
+                                className: "outlet-label"
+                            });
+
+                        marker.on('click', () => window.open(`https://www.google.com/maps/search/?api=1&query=${o.lat},${o.lng}`, "_blank"));
+                    }
+                });
+
+                if (routeCoords.length > 1) {
+                    routePolyline = L.polyline(routeCoords, { color: "#1a73e8", weight: 4, opacity: 0.85 }).addTo(map);
+                    map.fitBounds(routePolyline.getBounds(), { padding: [50, 50] });
+                }
+            });
+        }
+
+        function openFullRoute() {
+            navigator.geolocation.getCurrentPosition(pos => {
+                let points = [`${pos.coords.latitude},${pos.coords.longitude}`];
+                outletsData.forEach(o => points.push(`${o.lat},${o.lng}`));
+                window.open("https://www.google.com/maps/dir/" + points.join("/"), "_blank");
+            });
+        }
+    </script>
+</body>
+</html>
